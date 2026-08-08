@@ -12,6 +12,7 @@
 </head>
 <body>
     <div class="dashboard-container">
+    <!-- Sidebar (Unchanged) -->
     <aside class="sidebar">
         <h2><i class="fa-solid fa-seedling"></i> Agro<sup> UOM</sup></h2>
         <h3>Nursery System</h3>
@@ -27,6 +28,7 @@
     </aside>
 
     <main class="main-content">
+        <!-- Header (Unchanged) -->
         <div class="header_bar">
             <div class="header-title">
                 <h2>👋 Welcome <span id="username">Admin</span>!</h2>
@@ -44,6 +46,7 @@
             </div>
         </div>
 
+        <!-- Sensor Cards (Unchanged) -->
         <div class="card_grid">
             <div class="status_card" id="tempCard">
                 <span id="temp-status" class="status-badge optimal">OPTIMAL</span>
@@ -52,7 +55,6 @@
                     <h2 id="current-temp">--<span>°C</span></h2>
                 </div>
             </div>
-
             <div class="status_card" id="humCard">
                 <span id="hum-status" class="status-badge optimal">✅ OPTIMAL</span>
                 <div class="temp-display">
@@ -69,70 +71,25 @@
             </div>
         </div>
  
-        <div id="tempModal" class="modal">
-            <div class="modal-content">
-                <span class="close-btn temp-close">&times;</span>
-                <h2 class="modal-heading">🌡️ Temperature History</h2>
-                <div class="filter-wrapper">
-                    <label for="tempFilter">Select Time Period: </label>
-                    <select id="tempFilter" class="period-select">
-                        <option value="1">Last 24 Hours</option>
-                        <option value="7">Last 7 Days</option>
-                        <option value="30">Last 30 Days</option>
-                        <option value="90" selected>Last 3 Months (90 Days)</option>
-                    </select>
-                </div>
-                <div id="tempApexChart"></div> 
-            </div>
-        </div>
-
-        <div id="humModal" class="modal">
-            <div class="modal-content">
-                <span class="close-btn hum-close">&times;</span>
-                <h2 class="modal-heading">💧 Humidity History</h2>
-                <div class="filter-wrapper">
-                    <label for="humFilter">Select Time Period: </label>
-                    <select id="humFilter" class="period-select">
-                        <option value="1">Last 24 Hours</option>
-                        <option value="7">Last 7 Days</option>
-                        <option value="30">Last 30 Days</option>
-                        <option value="90" selected>Last 3 Months (90 Days)</option>
-                    </select>
-                </div>
-                <div id="humApexChart"></div> 
-            </div>
-        </div>
-
-        <div id="moisModal" class="modal">
-            <div class="modal-content">
-                <span class="close-btn mois-close">&times;</span>
-                <h2 class="modal-heading">💧 Moisture History</h2>
-                <div class="filter-wrapper">
-                    <label for="moisFilter">Select Time Period: </label>
-                    <select id="moisFilter" class="period-select">
-                        <option value="1">Last 24 Hours</option>
-                        <option value="7">Last 7 Days</option>
-                        <option value="30">Last 30 Days</option>
-                        <option value="90" selected>Last 3 Months (90 Days)</option>
-                    </select>
-                </div>
-                <div id="moisApexChart"></div> 
-            </div>
-        </div>
+        <!-- Modals (Unchanged) -->
+        <div id="tempModal" class="modal"><div class="modal-content"><span class="close-btn temp-close">&times;</span><h2 class="modal-heading">🌡️ Temperature History</h2><div class="filter-wrapper"><label for="tempFilter">Select Time Period: </label><select id="tempFilter" class="period-select"><option value="1">Last 24 Hours</option><option value="7">Last 7 Days</option><option value="30">Last 30 Days</option><option value="90" selected>Last 3 Months (90 Days)</option></select></div><div id="tempApexChart"></div></div></div>
+        <div id="humModal" class="modal"><div class="modal-content"><span class="close-btn hum-close">&times;</span><h2 class="modal-heading">💧 Humidity History</h2><div class="filter-wrapper"><label for="humFilter">Select Time Period: </label><select id="humFilter" class="period-select"><option value="1">Last 24 Hours</option><option value="7">Last 7 Days</option><option value="30">Last 30 Days</option><option value="90" selected>Last 3 Months (90 Days)</option></select></div><div id="humApexChart"></div></div></div>
+        <div id="moisModal" class="modal"><div class="modal-content"><span class="close-btn mois-close">&times;</span><h2 class="modal-heading">💧 Moisture History</h2><div class="filter-wrapper"><label for="moisFilter">Select Time Period: </label><select id="moisFilter" class="period-select"><option value="1">Last 24 Hours</option><option value="7">Last 7 Days</option><option value="30">Last 30 Days</option><option value="90" selected>Last 3 Months (90 Days)</option></select></div><div id="moisApexChart"></div></div></div>
 
         <div class="main-heading">
             <h1>Functions</h1>
         </div>
 
         <div class="functions">
-            <div id="pumpCard" class="cooling_fans fan-control-group functional-card-layout">
+            <!-- UPDATED: ID changed to flowCard and command changed to Flow -->
+            <div id="flowCard" class="cooling_fans fan-control-group functional-card-layout">
                 <div class="card-identity-wrapper">
                     <div class="main-func-data"><h2>Water Flow</h2></div>
                     <div class="func_icon"><i class="fa-solid fa-water"></i></div>
                 </div>
-                <div class="manual-action-wrapper" id="pumpManualButtons">
-                    <button class="ctrl-btn pulse-on" onclick="sendManualCommand('Pump', true)">ON</button>
-                    <button class="ctrl-btn pulse-off" onclick="sendManualCommand('Pump', false)">OFF</button>
+                <div class="manual-action-wrapper" id="flowManualButtons">
+                    <button class="ctrl-btn pulse-on" onclick="sendManualCommand('Flow', true)">ON</button>
+                    <button class="ctrl-btn pulse-off" onclick="sendManualCommand('Flow', false)">OFF</button>
                 </div>
             </div>
 
@@ -164,41 +121,21 @@
             </div>
         </div>
 
+        <!-- Tray Management (Unchanged) -->
         <section id="tray-management" style="display: none;">
             <div class="tray-heading" style="display: flex; justify-content: space-between; align-items: center; padding-right: 20px;">
                 <h1>Tray Management</h1>
                 <button id="openTrayUpdateBtn" class="update-btn"><i class="fa-solid fa-pen-to-square"></i> Update</button>
             </div>
-
             <div class="tray-grid" id="trayGrid"></div>
-
-            <div id="trayUpdateModal" class="modal">
-                <div class="modal-content">
-                    <span class="close-btn" id="closeTrayModal">&times;</span>
-                    <h2 style="color: #064e3b; margin-top: 0;">Update Tray Data</h2>
-                    
-                    <div class="form-group">
-                        <label>1. Select Trays (Click to select):</label>
-                        <div class="tray-selector-grid" id="traySelectorGrid"></div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="cropNameInput">2. Crop Name:</label>
-                        <input type="text" id="cropNameInput" placeholder="Enter crop name (e.g., Tomato)">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="plantedDateInput">3. Planted Date:</label>
-                        <input type="date" id="plantedDateInput">
-                    </div>
-
-                    <button id="submitTrayUpdate" class="save-btn">Update Trays</button>
-                </div>
-            </div>
+            <div id="trayUpdateModal" class="modal"><div class="modal-content"><span class="close-btn" id="closeTrayModal">&times;</span><h2 style="color: #064e3b; margin-top: 0;">Update Tray Data</h2><div class="form-group"><label>1. Select Trays (Click to select):</label><div class="tray-selector-grid" id="traySelectorGrid"></div></div><div class="form-group"><label for="cropNameInput">2. Crop Name:</label><input type="text" id="cropNameInput" placeholder="Enter crop name (e.g., Tomato)"></div><div class="form-group"><label for="plantedDateInput">3. Planted Date:</label><input type="date" id="plantedDateInput"></div><button id="submitTrayUpdate" class="save-btn">Update Trays</button></div></div>
         </section>
 
     </main>
     </div>
+
+    <!-- ERROR NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="toast-container"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -212,7 +149,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Map core module scopes cleanly to window reference pointers
         window.firebaseDb = db;
         window.firebaseRef = ref;
         window.firebaseSet = set;
@@ -221,14 +157,13 @@
         window.orderByChild = orderByChild;
         window.startAt = startAt;
 
-        // Reactive Telemetry Node Structuring
         window.firebaseTempRef = ref(db, '/Nursery/Temperature');
         window.firebaseHumRef = ref(db, '/Nursery/Humidity');
         window.firebaseMoisRef = ref(db, '/Nursery/Moisture');
         window.firebaseTraysRef = ref(db, '/Nursery/Trays');
 
-        // Dynamic State Tracker Pipelines
-        window.firebasePumpRef = ref(db, '/Nursery/Status/Pump');
+        // UPDATED: Connected to Flow instead of Pump
+        window.firebaseFlowRef = ref(db, '/Nursery/Status/Flow'); 
         window.firebaseMisterRef = ref(db, '/Nursery/Status/Mister');
         window.firebaseFanRef = ref(db, '/Nursery/Status/Fan');
     </script>
