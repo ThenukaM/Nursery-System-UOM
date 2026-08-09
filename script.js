@@ -81,10 +81,12 @@ function updateActuatorUI(type, isOn) {
 
     if (isOn) {
         card.classList.add('spinning');
-        card.style.backgroundColor = "#e0f2fe"; 
+        card.classList.add('active');
+        card.style.backgroundColor = "rgba(37, 242, 170, 0.16)";
     } else {
         card.classList.remove('spinning');
-        card.style.backgroundColor = "rgba(255, 255, 255, 0.6)"; 
+        card.classList.remove('active');
+        card.style.backgroundColor = "rgba(8, 34, 27, 0.96)";
     }
 
     if (type === 'mister') {
