@@ -13,81 +13,110 @@ function updateLiveTime() {
 setInterval(updateLiveTime, 1000);
 updateLiveTime();
 
-// --- 2. GLOBAL VARIABLES & STATE ---
-let apexChartInstances = { temp: null, hum: null, mois: null };
+// --- 2. GLOBAL STATE ---
+let apexChartInstances = { temp: null, hum: null };
+let chartDataSeries = { temp: [], hum: [] };
+const MAX_CHART_POINTS = 40; 
+
 let currentReadings = { temp: null, hum: null, mois: null };
-let actuatorStates = { Flow: false, Mister: false, Fan: false }; // TRACK HARDWARE STATUS
+let actuatorStates = { Flow: false, Mister: false, Light: false };
 
 let trayData = [];
 for (let i = 1; i <= 10; i++) { trayData.push({ id: i, crop: null, plantedDate: null, status: "Empty" }); }
 
-// --- 3. FIREBASE INDEXED LOG COMPILATION (Unchanged) ---
-function fetchHistoryFromFirebase(type, days) {
-    if (!window.firebaseDb) return;
-    const { query, ref, orderByChild, startAt, onFirebaseValue } = window;
-    const historyRef = ref(window.firebaseDb, '/Nursery/History');
-    const timeThreshold = Date.now() - (days * 24 * 60 * 60 * 1000);
-    const historyQuery = query(historyRef, orderByChild('timestamp'), startAt(timeThreshold));
-
-    if (apexChartInstances[type]) {
-        apexChartInstances[type].updateOptions({ series: [], noData: { text: 'Loading data timeline fields...' } });
-    }
-
-    onFirebaseValue(historyQuery, (snapshot) => {
-        const data = snapshot.val();
-        const dataPoints = [];
-        if (data) {
-            Object.keys(data).forEach(key => {
-                const node = data[key];
-                let value = type === 'temp' ? node.temperature : (type === 'hum' ? node.humidity : node.moisture);
-                dataPoints.push([node.timestamp, value]);
-            });
+// --- 3. REALTIME LIVE CHARTS ---
+function initLiveCharts() {
+    const createOptions = (title, colorHex) => ({
+        chart: {
+            type: 'area',
+            height: '100%',
+            width: '100%',
+            animations: {
+                enabled: true,
+                easing: 'linear',
+                dynamicAnimation: { speed: 1000 }
+            },
+            toolbar: { show: false },
+            zoom: { enabled: false }
+        },
+        colors: [colorHex],
+        dataLabels: { enabled: false },
+        stroke: { curve: 'smooth', width: 2 },
+        fill: {
+            type: 'gradient',
+            gradient: {
+                shadeIntensity: 1,
+                opacityFrom: 0.45,
+                opacityTo: 0.05,
+                stops: [20, 100]
+            }
+        },
+        series: [{ name: title, data: [] }],
+        xaxis: {
+            type: 'datetime',
+            labels: {
+                datetimeUTC: false,
+                format: 'HH:mm:ss',
+                style: { colors: '#8ff7d4', fontSize: '11px' }
+            },
+            axisBorder: { show: false },
+            axisTicks: { show: false }
+        },
+        yaxis: {
+            labels: {
+                style: { colors: '#8ff7d4', fontSize: '11px' }
+            }
+        },
+        grid: {
+            borderColor: 'rgba(42, 183, 137, 0.15)',
+            strokeDashArray: 3
+        },
+        tooltip: {
+            theme: 'dark',
+            x: { format: 'HH:mm:ss' }
+        },
+        noData: {
+            text: 'Waiting for live data...',
+            style: { color: '#8ff7d4', fontSize: '14px' }
         }
-        renderApexChart(type, dataPoints);
-    }, { onlyOnce: true });
-}
+    });
 
-function renderApexChart(type, dataPoints) {
-    const elementId = `${type}ApexChart`;
-    const titles = { temp: 'Temperature (°C)', hum: 'Humidity (%)', mois: 'Moisture (%)' };
-    const colors = { temp: '#e67e22', hum: '#3498db', mois: '#27ae60' };
-    const options = {
-        chart: { type: 'area', height: 300, zoom: { enabled: true }, toolbar: { show: true } },
-        colors: [colors[type]], dataLabels: { enabled: false }, stroke: { curve: 'smooth', width: 2 },
-        series: [{ name: titles[type], data: dataPoints }], xaxis: { type: 'datetime', labels: { datetimeUTC: false } },
-        tooltip: { x: { format: 'dd MMM yyyy HH:mm' } }, noData: { text: 'No metrics stored inside database boundaries for this time interval.' }
-    };
-    if (!apexChartInstances[type]) {
-        apexChartInstances[type] = new ApexCharts(document.getElementById(elementId), options);
-        apexChartInstances[type].render();
-    } else {
-        apexChartInstances[type].updateOptions(options);
+    const tempEl = document.getElementById('tempApexChart');
+    const humEl = document.getElementById('humApexChart');
+
+    if (tempEl && !apexChartInstances.temp) {
+        apexChartInstances.temp = new ApexCharts(tempEl, createOptions('Temperature (°C)', '#e67e22'));
+        apexChartInstances.temp.render();
+    }
+    if (humEl && !apexChartInstances.hum) {
+        apexChartInstances.hum = new ApexCharts(humEl, createOptions('Humidity (%)', '#3498db'));
+        apexChartInstances.hum.render();
     }
 }
 
-function openModal(type) {
-    document.getElementById(`${type}Modal`).style.display = "block";
-    const selectedDays = document.getElementById(`${type}Filter`).value;
-    fetchHistoryFromFirebase(type, parseInt(selectedDays));
+function updateLiveChartData(type, value) {
+    if (!apexChartInstances[type]) return;
+
+    const timestamp = Date.now();
+    chartDataSeries[type].push([timestamp, Number(value)]);
+
+    // උපරිම readings 40ක් පමණක් තබා ගනී (Rolling window)
+    if (chartDataSeries[type].length > MAX_CHART_POINTS) {
+        chartDataSeries[type].shift();
+    }
+
+    apexChartInstances[type].updateSeries([{
+        data: chartDataSeries[type]
+    }], false);
 }
 
-document.querySelectorAll('.close-btn').forEach(btn => { btn.onclick = () => btn.closest('.modal').style.display = "none"; });
-window.onclick = (event) => { if (event.target.classList.contains('modal')) event.target.style.display = "none"; };
-
-// --- 4. ACTUATOR UI SYSTEM RENDERING ---
+// --- 4. ACTUATOR CARD ANIMATION ---
 function updateActuatorUI(type, isOn) {
     const card = document.getElementById(`${type}Card`);
     if (!card) return;
 
-    if (isOn) {
-        card.classList.add('spinning');
-        card.classList.add('active');
-        card.style.backgroundColor = "rgba(37, 242, 170, 0.16)";
-    } else {
-        card.classList.remove('spinning');
-        card.classList.remove('active');
-        card.style.backgroundColor = "rgba(8, 34, 27, 0.96)";
-    }
+    card.classList.toggle('spinning', isOn);
+    card.classList.toggle('active', isOn);
 
     if (type === 'mister') {
         const mistingProgress = document.getElementById('mistingProgress');
@@ -95,7 +124,7 @@ function updateActuatorUI(type, isOn) {
         if (isOn) {
             mistingProgress.style.display = 'block';
             mistingProgressBar.classList.remove('animate');
-            void mistingProgressBar.offsetWidth; 
+            void mistingProgressBar.offsetWidth;
             mistingProgressBar.classList.add('animate');
         } else {
             mistingProgress.style.display = 'none';
@@ -104,15 +133,15 @@ function updateActuatorUI(type, isOn) {
     }
 }
 
-// --- 5. INTERFACE GRAPHICS MODULATORS (Unchanged) ---
+// --- 5. SENSOR CARD DISPLAY ---
 function updateUI(type, value) {
     currentReadings[type] = value;
     const display = document.getElementById(`current-${type}`);
     const status = document.getElementById(`${type}-status`);
     const unit = type === 'temp' ? '°C' : '%';
 
-    if (display) display.innerHTML = `${value.toFixed(1)}<span>${unit}</span>`;
-    
+    if (display) display.innerHTML = `${Number(value).toFixed(1)}<span>${unit}</span>`;
+
     if (status) {
         status.className = 'status-badge';
         if (type === 'temp') {
@@ -131,14 +160,7 @@ function updateUI(type, value) {
     }
 }
 
-document.getElementById('tempCard')?.addEventListener('click', () => openModal('temp'));
-document.getElementById('humCard')?.addEventListener('click', () => openModal('hum'));
-document.getElementById('moisCard')?.addEventListener('click', () => openModal('mois'));
-document.getElementById('tempFilter')?.addEventListener('change', (e) => fetchHistoryFromFirebase('temp', parseInt(e.target.value)));
-document.getElementById('humFilter')?.addEventListener('change', (e) => fetchHistoryFromFirebase('hum', parseInt(e.target.value)));
-document.getElementById('moisFilter')?.addEventListener('change', (e) => fetchHistoryFromFirebase('mois', parseInt(e.target.value)));
-
-// --- 6. USER HYBRID OVERRIDE COMMAND STREAM PROCESSING ---
+// --- 6. MANUAL / AUTO MODE TOGGLE ---
 const toggleBtn = document.getElementById('toggleBtn');
 const modeText = document.getElementById('modeText');
 
@@ -153,42 +175,13 @@ toggleBtn?.addEventListener('change', function() {
     }
 
     const buttonsDisplay = isManual ? "flex" : "none";
-    document.getElementById('flowManualButtons').style.display = buttonsDisplay; // UPDATED ID
+    document.getElementById('flowManualButtons').style.display = buttonsDisplay;
     document.getElementById('misterManualButtons').style.display = buttonsDisplay;
-    document.getElementById('fanManualButtons').style.display = buttonsDisplay;
+    document.getElementById('lightManualButtons').style.display = buttonsDisplay;
 });
 
-// SHOW ERROR TOAST NOTIFICATION
-function showErrorToast(msg) {
-    const container = document.getElementById('toast-container');
-    if (!container) return;
-    const toast = document.createElement('div');
-    toast.className = 'toast error';
-    toast.innerText = msg;
-    container.appendChild(toast);
-    
-    // Auto remove after 3.5 seconds
-    setTimeout(() => {
-        toast.style.animation = 'fadeout 0.5s forwards';
-        setTimeout(() => toast.remove(), 500);
-    }, 3500);
-}
-
+// --- 7. MANUAL COMMANDS ---
 function sendManualCommand(actuator, state) {
-    // -----------------------------------------------------------------
-    // MUTUAL EXCLUSION LOGIC (BLOCK SIMULTANEOUS WATER FLOW & MISTERS)
-    // -----------------------------------------------------------------
-    if (state === true) {
-        if (actuator === 'Flow' && actuatorStates.Mister === true) {
-            showErrorToast("⚠️ Error: Cannot turn ON Water Flow while Misters are active. Please turn OFF Misters first.");
-            return; // Block execution
-        }
-        if (actuator === 'Mister' && actuatorStates.Flow === true) {
-            showErrorToast("⚠️ Error: Cannot turn ON Misters while Water Flow is active. Please turn OFF Water Flow first.");
-            return; // Block execution
-        }
-    }
-
     if (window.firebaseDb && window.firebaseRef && window.firebaseSet) {
         const commandRef = window.firebaseRef(window.firebaseDb, `/Nursery/ManualCommands/${actuator}`);
         window.firebaseSet(commandRef, state);
@@ -196,63 +189,84 @@ function sendManualCommand(actuator, state) {
 }
 window.sendManualCommand = sendManualCommand;
 
-// --- 7. CLOUD SYNCHRONIZATION PIPELINES ---
+// --- 8. FIREBASE SYNC & CHART STREAMING ---
+document.addEventListener('DOMContentLoaded', () => {
+    initLiveCharts();
+});
+
 setTimeout(() => {
     if (window.onFirebaseValue) {
-        
-        // Listen to Flow Status instead of Pump Status
         if (window.firebaseFlowRef) {
             window.onFirebaseValue(window.firebaseFlowRef, (snap) => {
                 const val = snap.val();
                 if (val !== null) {
-                    actuatorStates.Flow = val; // UPDATE LOCAL STATE
+                    actuatorStates.Flow = val;
                     updateActuatorUI('flow', val);
                 }
             });
         }
-        
+
         if (window.firebaseMisterRef) {
             window.onFirebaseValue(window.firebaseMisterRef, (snap) => {
                 const val = snap.val();
                 if (val !== null) {
-                    actuatorStates.Mister = val; // UPDATE LOCAL STATE
+                    actuatorStates.Mister = val;
                     updateActuatorUI('mister', val);
                 }
             });
         }
-        
-        if (window.firebaseFanRef) {
-            window.onFirebaseValue(window.firebaseFanRef, (snap) => {
+
+        if (window.firebaseLightRef) {
+            window.onFirebaseValue(window.firebaseLightRef, (snap) => {
                 const val = snap.val();
                 if (val !== null) {
-                    actuatorStates.Fan = val;
-                    updateActuatorUI('fan', val);
+                    actuatorStates.Light = val;
+                    updateActuatorUI('light', val);
                 }
             });
         }
 
-        window.onFirebaseValue(window.firebaseTempRef, (snap) => { if(snap.val() !== null) updateUI('temp', snap.val()); });
-        window.onFirebaseValue(window.firebaseHumRef, (snap) => { if(snap.val() !== null) updateUI('hum', snap.val()); });
-        window.onFirebaseValue(window.firebaseMoisRef, (snap) => { if(snap.val() !== null) updateUI('mois', snap.val()); });
+        // Realtime Temperature Listener & Live Chart Update
+        window.onFirebaseValue(window.firebaseTempRef, (snap) => {
+            const val = snap.val();
+            if (val !== null) {
+                updateUI('temp', val);
+                updateLiveChartData('temp', val);
+            }
+        });
+
+        // Realtime Humidity Listener & Live Chart Update
+        window.onFirebaseValue(window.firebaseHumRef, (snap) => {
+            const val = snap.val();
+            if (val !== null) {
+                updateUI('hum', val);
+                updateLiveChartData('hum', val);
+            }
+        });
+
+        window.onFirebaseValue(window.firebaseMoisRef, (snap) => {
+            const val = snap.val();
+            if (val !== null) updateUI('mois', val);
+        });
 
         if (window.firebaseTraysRef) {
             window.onFirebaseValue(window.firebaseTraysRef, (snapshot) => {
                 const val = snapshot.val();
-                if (val !== null) { trayData = Object.values(val); renderTrays(); } 
+                if (val !== null) { trayData = Object.values(val); renderTrays(); }
                 else { initializeDefaultTrays(); }
             });
         }
     }
-}, 1500);
+}, 1000);
 
 function initializeDefaultTrays() {
     trayData = [];
     for (let i = 1; i <= 10; i++) { trayData.push({ id: i, crop: null, plantedDate: null, status: "Empty" }); }
-    renderTrays(); 
+    renderTrays();
     if (window.firebaseSet && window.firebaseTraysRef) window.firebaseSet(window.firebaseTraysRef, trayData);
 }
 
-// --- 8. TAB NAVIGATION LOGIC (Unchanged) ---
+// --- 9. TAB NAVIGATION ---
 document.addEventListener('DOMContentLoaded', () => {
     const overviewLink = document.querySelector('a[href="#overview"]');
     const trayLink = document.querySelector('a[href="#tray"]');
@@ -261,15 +275,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (trayLink && overviewLink) {
         trayLink.addEventListener('click', (e) => {
             e.preventDefault();
-            document.querySelectorAll('.card_grid, .functions, .main-heading').forEach(el => { if(el) el.style.display = 'none'; });
+            document.querySelectorAll('.card_grid, .functions, .main-heading, #charts-section').forEach(el => { if(el) el.style.display = 'none'; });
             if(traySection) traySection.style.display = 'block';
             overviewLink.classList.remove('active'); trayLink.classList.add('active');
         });
 
         overviewLink.addEventListener('click', (e) => {
             e.preventDefault();
-            document.querySelectorAll('.card_grid, .functions, .main-heading').forEach(el => {
-                if (el.classList.contains('card_grid') || el.classList.contains('functions')) { el.style.display = 'grid'; } 
+            document.querySelectorAll('.card_grid, .functions, .main-heading, #charts-section').forEach(el => {
+                if (el.classList.contains('card_grid') || el.classList.contains('functions')) { el.style.display = 'grid'; }
                 else { el.style.display = 'block'; }
             });
             if(traySection) traySection.style.display = 'none';
@@ -279,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTrays();
 });
 
-// --- 9. TRAY MANAGEMENT MATRIX (Unchanged) ---
+// --- 10. TRAY MANAGEMENT ---
 function formatDate(dateString) {
     if (!dateString) return "--";
     const date = new Date(dateString);
@@ -289,9 +303,9 @@ function formatDate(dateString) {
 function renderTrays() {
     const trayGrid = document.getElementById('trayGrid');
     if (!trayGrid) return;
-    trayGrid.innerHTML = ''; 
+    trayGrid.innerHTML = '';
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    let htmlContent = ''; let dataChanged = false; 
+    let htmlContent = ''; let dataChanged = false;
 
     trayData.forEach((tray, index) => {
         let plantedStr = "--"; let transplantStr = "--"; let daysLeftHTML = "";
@@ -304,10 +318,10 @@ function renderTrays() {
 
             if (diffDays < 0) {
                 trayData[index].status = "Empty"; trayData[index].crop = null; trayData[index].plantedDate = null;
-                tray.status = "Empty"; tray.crop = null; dataChanged = true; 
+                tray.status = "Empty"; tray.crop = null; dataChanged = true;
             } else {
                 plantedStr = formatDate(tray.plantedDate); transplantStr = formatDate(transplantDateObj);
-                if (diffDays > 0) { daysLeftHTML = `<h1>${diffDays}</h1><span>Days</span>`; } 
+                if (diffDays > 0) { daysLeftHTML = `<h1>${diffDays}</h1><span>Days</span>`; }
                 else if (diffDays === 0) { daysLeftHTML = `<h1>0</h1><span>Today!</span>`; }
             }
         }
@@ -324,7 +338,7 @@ function renderTrays() {
             </div>
         `;
     });
-    
+
     trayGrid.innerHTML = htmlContent;
     if (dataChanged && window.firebaseSet && window.firebaseTraysRef) window.firebaseSet(window.firebaseTraysRef, trayData);
 }
@@ -338,12 +352,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitBtn = document.getElementById('submitTrayUpdate');
 
     if(selectorGrid) {
+        selectorGrid.innerHTML = '';
         for (let i = 1; i <= 10; i++) {
             const box = document.createElement('div');
             box.className = 'tray-select-box'; box.innerText = i;
             box.onclick = function() {
                 this.classList.toggle('selected');
-                if (this.classList.contains('selected')) { selectedTraysForUpdate.push(i); } 
+                if (this.classList.contains('selected')) { selectedTraysForUpdate.push(i); }
                 else { selectedTraysForUpdate = selectedTraysForUpdate.filter(id => id !== i); }
             };
             selectorGrid.appendChild(box);
